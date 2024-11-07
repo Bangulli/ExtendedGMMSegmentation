@@ -31,10 +31,6 @@ class Scorer():
         img, pred = self._reassign(combi)
         return img, pred, score
 
-    def relabel_for_bayes(self):
-        score, combi = self._find_best()
-        return combi
-
     def _find_best(self):
         '''
         Relabel in each possible configuration and compure score, save best config and score

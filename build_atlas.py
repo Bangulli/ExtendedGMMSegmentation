@@ -75,7 +75,7 @@ if __name__ == '__main__':
         img_list.append(arr)
 
     atlas = models.Atlas() # builds an anatomical and probabilistic atlas from a list of registered gt images
-    atlas.fit(img_list, gt_list, affine)
+    atlas.build(img_list, gt_list, affine)
     atlas.save("custom_atlas")
 
 

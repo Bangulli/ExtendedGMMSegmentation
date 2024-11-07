@@ -74,15 +74,10 @@ if __name__ == '__main__':
             arr, _ = load_nifty_as_np(os.path.join(img_folder, img))
         img_list.append(arr)
 
-    atlas = models.Atlas() # builds an anatomical and probabilistic atlas from a list of registered gt images
-    atlas.fit(img_list, gt_list, affine)
-    atlas.save("custom_atlas")
+    tm = models.TissueModel(norm='none') # builds an anatomical and probabilistic atlas from a list of registered gt images
+    tm.fit(img_list, gt_list)
+    tm.show()
+    tm.save("custom_tm")
 
 
-    slice_index = 125
-    plt.imshow(atlas.anatomical[:, :, slice_index])
-    # plt.colorbar(ticks=[0, 1, 2, 3], label='Tissue Type')
-    plt.title(f'Anatomical Atlas')
-    plt.show()
-    plt.clf()
 

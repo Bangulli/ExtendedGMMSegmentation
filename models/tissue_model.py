@@ -2,16 +2,31 @@ import numpy as np
 import math
 import nibabel as nib
 import os
+import matplotlib.pyplot as plt
 from PrettyPrint import figures
 from sklearn.cluster import KMeans
 from scipy.ndimage import median_filter
 import warnings
 class TissueModel:
+    '''
+    Class to generate and use a tissue model based on intensity of volumetric scans
+    '''
     def __init__(self, labels=3, norm='linear'):
+        '''
+        Constructor
+        :param labels: number of tissues in the model, default 3 for cerebrospinal fluid, grey matter and white matter
+        :param norm: image intensity normalization strategy, default 'linear'
+        '''
         self.labels = labels
         self.norm = norm
 
     def fit(self, images, gts):
+        '''
+        Fit the tissue model accoring to the passed images and ground truths
+        :param images: list of volumetric images (=3D numpy array)
+        :param gts: list of ground truth labels (=3D numpy array)
+        :return:
+        '''
         if len(images) != len(gts):
             raise ValueError('Images and Gts must have the same amount')
         self.images = images
@@ -21,6 +36,10 @@ class TissueModel:
         self._build()
 
     def _build(self):
+        '''
+        Build the tissue model by counting and averaging intensities for each label
+        :return:
+        '''
         self.L_prob = np.zeros((self.labels, 4096), dtype=np.float64)
 
         for i in range(len(self.images)):  # Iterate over images
@@ -46,6 +65,10 @@ class TissueModel:
 
 
     def _comp_ref_hist(self):
+        '''
+        Used in hist normalization strategy, computes the reference histogram based on the underlying data
+        :return:
+        '''
         ref = np.zeros(4096, dtype=np.float64)
         for img in self.images:
             hist, _ = np.histogram(img, bins=4096, range=(0, 4095), density=True)
@@ -53,6 +76,10 @@ class TissueModel:
         self.ref_hist = ref/len(self.images)
 
     def _norm_imgs(self):
+        '''
+        Helper method to normalize an entire image set
+        :return:
+        '''
         if self.norm == 'hist':
             self._comp_ref_hist()
             for i in range(len(self.images)):
@@ -66,10 +93,17 @@ class TissueModel:
                 max_range = 4059
                 self.images[i] = (self.images[i] - low) / (high - low) * (max_range - min_range) + min_range
                 self.images[i] = self.images[i].astype(np.uint16)
+        elif self.norm == 'none':
+            pass
         else:
             raise ValueError('Normalization method not recognized')
 
     def _norm_img(self, img):
+        '''
+        helper method to normalize a single image for segmentation
+        :param img:
+        :return:
+        '''
         if self.norm == 'hist':
             self._comp_ref_hist()
             img = self._hist_match(img)
@@ -80,6 +114,8 @@ class TissueModel:
             max_range = 4059
             img = (img - low) / (high - low) * (max_range - min_range) + min_range
             img = img.astype(np.uint16)
+        elif self.norm == 'none':
+            pass
         else:
             raise ValueError('Normalization method not recognized')
         return img
@@ -122,26 +158,71 @@ class TissueModel:
         return result
 
     def save(self, path):
+        '''
+        Saves the tissue models attributes in a target location, creates the folder if necessary
+        :param path: String, path to the target location, optionally with new fodler name
+        :return:
+        '''
+        os.makedirs(path, exist_ok=True)
         np.save(os.path.join(path, 'tissue_model.npy'), self.L_prob)
-        np.save(os.path.join(path, 'ref_hist.npy'), self.ref_hist)
+        if self.norm == 'hist':
+            np.save(os.path.join(path, 'ref_hist.npy'), self.ref_hist)
 
     def load(self, path):
+        '''
+        Load the tissue model from a location
+        :param path: path to the model
+        :return:
+        '''
         self.L_prob = np.load(os.path.join(path, 'tissue_model.npy'))
-        self.ref_hist = np.load(os.path.join(path, 'ref_hist.npy'))
+        if self.norm == 'hist':
+            self.ref_hist = np.load(os.path.join(path, 'ref_hist.npy'))
 
     def segment(self, image):
+        '''
+        Segments an image based on the tissue model by assigning labels to intensities
+        :param image: 3D numpy array, the image to segment
+        :return: 3D numpy array, the segmented image
+        '''
         image = self._norm_img(image)
-        x, y, z = image.shape
-        d = self.L_prob.shape[0]
-        segmentation = np.zeros((x,y,z,d), dtype=float)
-        for i in range(4096):
-            segmentation[image==i, :] = self.L_prob[:, i]
+        segmentation = self.L_prob[:, image].transpose(1, 2, 3, 0)
         mask = np.sum(segmentation, axis=-1)!=0
         segmentation = np.argmax(segmentation, axis=-1)
         return segmentation[mask]+1
 
     def soft_segment(self, image):
+        '''
+        Assigns probabilites of a voxel belonging to a tissue
+        :param image: 3d numpy array, the image to segment
+        :return: 4d numpy array, the segmented image
+        '''
         image = self._norm_img(image)
         segmentation = self.L_prob[:, image].transpose(1, 2, 3, 0)
         #print(segmentation.shape)
         return segmentation
+
+    def show(self):
+        data = self.L_prob
+
+        # X-axis values from 0 to 4095
+        x = np.arange(4096)
+
+        # Create the plot
+        plt.figure(figsize=(10, 6))
+
+        # Plot each line
+        for i in range(3):
+            plt.plot(x, data[i], label=f'label {i}')
+
+        # Set x and y limits
+        plt.xlim(0, 4095)
+        plt.ylim(0, 1)
+
+        # Add labels, title, and legend
+        plt.xlabel("X-axis (0-4095)")
+        plt.ylabel("Y-axis (0-1)")
+        plt.title("Tissue model intensity probabilities")
+        plt.legend()
+
+        # Display the plot
+        plt.show()

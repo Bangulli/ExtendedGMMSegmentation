@@ -13,19 +13,25 @@ import warnings
 class GMM:
     '''
     Implementation of the Gaussian Mixture Model according to the presentation provided by the MAIA Medical Image Segmentation and Applications course.
+    Supports atlas and tissue models for prior information
     '''
-    def __init__(self, k, prior, max_iter=100, init='atlas', verbose=False):
+    def __init__(self, k, atlas=None, max_iter=100, init='atlas', verbose=False, tissue_model=None):
         '''
         Constructor. Initializes the GMM with parameters
         :param k: int, number of clusters
+        :param atlas: instance of an atlas model for prior knowledge
         :param max_iter: int, maximum number of optimization iterations
         :param init: String, initialization method
+        :param verbose: bool detailed reporting of parameters during em
+        :param tissue_model: instance of a tissue model for prior knowledge
         '''
         self.k = k
         self.max_iter = max_iter
         self.init = init
-        self.prior = prior
+        self.atlas = atlas
         self.verbose = verbose
+        self.tissue_model = tissue_model
+        self.prior_add_weights = None
         return
 
     def fit(self, image, mask, influence_frq=0):
@@ -71,6 +77,7 @@ class GMM:
     def _influence_em(self, influence_frq):
         '''
         Optimization iteration method. Runs the Expectation Maximization algorithm to optimize the parameters for the gaussian mixture
+        :param influence_frq: the frequency of how often the prior knowledge is applied to the responsibilities over the iterations of the em algorithm
         :return: None
         '''
         prog = figures.RunningIndicator()
@@ -80,7 +87,10 @@ class GMM:
                 print('Alphas:\n', self.alphas, '\n', 'Means:\n', self.means, '\n', 'Variances:\n', self.variances)
             self._estep()
             if i%influence_frq == 0:
-                self.weights = self.weights * self.prior_weights
+                if self.prior_add_weights is None:
+                    self.weights = self.weights * self.prior_weights
+                else:
+                    self.weights = self.weights * self.prior_weights * self.prior_add_weights
             self._mstep()
             if self._convergence():
                 break
@@ -161,6 +171,11 @@ class GMM:
         return res
 
     def _posterior_assign(self):
+        '''
+        Assign the labels to the data according to the largest responsibility
+        uses the prior information of the tissue model or atlas to refine the output
+        :return:
+        '''
         res = np.argmax((self.prior_weights*self.weights), axis=-1)
         return res
 
@@ -180,8 +195,12 @@ class GMM:
     def _init(self, image, mask): # initializes all parameters according to the passed method. For now just supports kmeans
         '''
         Initialize the parameters of the GMM
-        alphas = 1/k
-        means & covariance matrix according to passed init method
+        kmeans:
+            alphas = 1/k
+            means & covariance matrix according to passed init method
+        other:
+            uses probability information of the tissue or atlas model as initial cluster responsibilities and
+            performs an M-step with that to initialize the parameters
         :return: None
         '''
         # init the hard one
@@ -207,10 +226,10 @@ class GMM:
                 self.variances.append(cov)
 
         elif self.init == 'atlas':
-            if not isinstance(self.prior, Atlas):
+            if not isinstance(self.atlas, Atlas):
                 raise ValueError('Supporting prior knowledge is not an atlas, but indicated atlas initialization')
             # get probabilistic
-            seg = self.prior.soft_segment()
+            seg = self.atlas.soft_segment()
             # transform data
             data = self.ft.transform([image, seg[..., 0], seg[..., 1], seg[..., 2]], mask)
             self.X = data[:, 0].reshape(-1, 1)
@@ -229,10 +248,10 @@ class GMM:
 
 
         elif self.init == 'tissue_model':
-            if not isinstance(self.prior, TissueModel):
+            if not isinstance(self.tissue_model, TissueModel):
                 raise ValueError('Supporting prior knowledge is not a tissue model, but indicated tissue model initialization')
             # get probabilistic
-            seg = self.prior.soft_segment(image)
+            seg = self.tissue_model.soft_segment(image)
             # transform data
             data = self.ft.transform([image, seg[..., 0], seg[..., 1], seg[..., 2]], mask)
             self.X = data[:, 0].reshape(-1, 1)
@@ -247,6 +266,31 @@ class GMM:
             # assign weights and mstep.
             self.prior_weights = data[:, 1:]
             self.weights = self.prior_weights
+            self._mstep()
+
+        elif self.init == 'both':
+            if not isinstance(self.tissue_model, TissueModel):
+                raise ValueError('Supporting prior knowledge is not a tissue model, but indicated tissue model initialization')
+            if not isinstance(self.atlas, Atlas):
+                raise ValueError('Supporting prior knowledge is not an atlas, but indicated atlas initialization')
+            # get probabilistic
+            seg = self.tissue_model.soft_segment(image)
+            # transform data
+            data = self.ft.transform([image, seg[..., 0], seg[..., 1], seg[..., 2]], mask)
+            self.X = data[:, 0].reshape(-1, 1)
+            self.dims = self.X.shape[1]
+            self.samples = self.X.shape[0]
+            # init easy
+            self.p = np.zeros((self.samples, self.k))
+            self.loglikelihood = 0
+            self.alphas = list(np.zeros(self.k))
+            self.variances = [np.zeros((self.dims, self.dims))] * self.k
+            self.means = np.zeros((self.k, self.dims))
+            # assign weights and mstep.
+            self.prior_weights = data[:, 1:]
+            seg = self.tissue_model.soft_segment(image)
+            self.pior_add_weights = self.ft.retransform([seg[..., 0], seg[..., 1], seg[..., 2]])
+            self.weights = self.prior_weights * self.pior_add_weights
             self._mstep()
 
         else:
