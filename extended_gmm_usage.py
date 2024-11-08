@@ -66,7 +66,7 @@ if __name__ == '__main__':
         gmm = models.GMM(3, at, init='atlas', verbose=False)
         seg = gmm.fit_transform(image, mask.astype(bool), True, 0)
         dices.append(dice(seg, gt))
-        nib.save(nib.Nifti1Image(seg, affine), os.path.join("C:/Users\lok20\OneDrive\_Master\MAIA-ERASMUS/3 Semester\MISA\Lab3/result_atlas_post", img))
+        #nib.save(nib.Nifti1Image(seg, affine), os.path.join("C:/Users\lok20\OneDrive\_Master\MAIA-ERASMUS/3 Semester\MISA\Lab3/result_atlas_post", img))
     mean_dice(dices)
 
     '''

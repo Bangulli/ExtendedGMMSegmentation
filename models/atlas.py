@@ -99,11 +99,11 @@ class Atlas:
             img = nib.load(os.path.join(path, names[i]))
             maps.append(img.get_fdata())
         self.probabilistic = np.stack(maps, axis=-1)
-
+        '''
         img = nib.load(os.path.join(path, 'atlas_anatomical.nii'))
         self.anatomical = img.get_fdata()
         self.affine = img._affine
-        self.mask = self.anatomical != 0
+        self.mask = self.anatomical != 0'''
 
 
 

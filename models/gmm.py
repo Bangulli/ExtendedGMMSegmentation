@@ -296,7 +296,7 @@ class GMM:
         else:
             raise NotImplementedError('Unknown init method')
 
-    def _convergence(self, tol=1e-1):
+    def _convergence(self, tol=1e-5):
         '''
         Check for convergence according to a tolerance range. Computes the loglikelihood of the model and compares it to the
         previous iteration. If the difference is less than the tolerance return true
