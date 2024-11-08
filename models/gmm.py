@@ -15,7 +15,7 @@ class GMM:
     Implementation of the Gaussian Mixture Model according to the presentation provided by the MAIA Medical Image Segmentation and Applications course.
     Supports atlas and tissue models for prior information
     '''
-    def __init__(self, k, atlas=None, max_iter=100, init='atlas', verbose=False, tissue_model=None):
+    def __init__(self, k, atlas=None, max_iter=100, init='atlas', verbose=False, tissue_model=None, tol=1e-6):
         '''
         Constructor. Initializes the GMM with parameters
         :param k: int, number of clusters
@@ -32,6 +32,7 @@ class GMM:
         self.verbose = verbose
         self.tissue_model = tissue_model
         self.prior_add_weights = None
+        self.tol = tol
         return
 
     def fit(self, image, mask, influence_frq=0):
@@ -296,7 +297,7 @@ class GMM:
         else:
             raise NotImplementedError('Unknown init method')
 
-    def _convergence(self, tol=1e-5):
+    def _convergence(self):
         '''
         Check for convergence according to a tolerance range. Computes the loglikelihood of the model and compares it to the
         previous iteration. If the difference is less than the tolerance return true
@@ -306,7 +307,7 @@ class GMM:
         inner_sums = np.dot(self.p, self.alphas)
         inner_sums = np.maximum(inner_sums, 1e-300)
         ll = np.sum(np.log(inner_sums))
-        if abs(self.loglikelihood - ll) < tol:
+        if abs(self.loglikelihood - ll) < self.tol:
             print('\nConvergence found')
             return True
         else:

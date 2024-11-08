@@ -19,5 +19,23 @@ Example usage in the extended_gmm_usage.py script. <br>
 - k: int, number of clusters
 - atlas = Atlas object from the models package, optional
 - max_iter int, number of iterations to stop at if convergence is not reached, default = 100
-- verbose, bool
+- verbose, bool, controls if detailed parameter changes are printed to the console, default False
+
+### Scorer
+
+### FeatureTransformer
+
+### Atlas
+
+### TissueModel
+
+## Examples
+
+### Atlas building
+
+### Tissue Model building
+
+### Extended GMM usage
+
+## License
     
