@@ -74,10 +74,10 @@ if __name__ == '__main__':
             arr, _ = load_nifty_as_np(os.path.join(img_folder, img))
         img_list.append(arr)
 
-    tm = models.TissueModel(norm='hist') # builds an anatomical and probabilistic atlas from a list of registered gt images
+    tm = models.TissueModel(norm='none') # builds an anatomical and probabilistic atlas from a list of registered gt images
     tm.fit(img_list, gt_list)
     tm.show()
-    tm.save("custom_tm")
+    tm.save("custom_tm_none")
 
 
 

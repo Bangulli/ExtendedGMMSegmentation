@@ -62,11 +62,14 @@ if __name__ == '__main__':
         print('\n###############', img, '###############')
         at = models.Atlas()
         at.load(os.path.join(atlas_folder, img.split('.')[0]))
+        prior = models.TMACombination(at, tm)
         image, affine = load_nifty_as_np(os.path.join(img_folder, img))
         mask, _ = load_nifty_as_np(os.path.join(msk_folder, img.split('.')[0]+'_1C.nii'))
         gt, _ = load_nifty_as_np(os.path.join(gt_folder, img.split('.')[0]+'_3C.nii'))
-        gmm = models.GMM(3, atlas=at, init='both', verbose=False, tissue_model=tm)
-        seg = gmm.fit_transform(image, mask.astype(bool), False, 1)
+        gmm = models.GMM(3, init='prior', prior=tm)
+
+        seg = gmm.fit_transform(image, mask.astype(bool), True, 2)
+
 
         #sc = models.Scorer(gt, np.zeros(1), seg)
         #seg, _, dc = sc.relabel()

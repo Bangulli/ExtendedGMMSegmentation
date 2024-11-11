@@ -3,3 +3,4 @@ from .feature import FeatureTransformer
 from .gmm import GMM
 from .scoring import Scorer
 from .tissue_model import TissueModel
+from .combined_prior import TMACombination

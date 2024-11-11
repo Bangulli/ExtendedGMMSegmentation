@@ -1,14 +1,15 @@
 # Extended GMM Segmentation
 ## Content
-- [Introduction](##Introduction)
-- [Classes](##Classes)
-- [Examples](##Examples)
-- [License](##License)
+- [Introduction](#Introduction)
+- [Requirements](#Requirements)
+- [Classes](#Classes)
+- [Examples](#Examples)
+- [License](#License)
 ## Introduction
 This repository contains python scripts and classes to perform Gaussian Mixture based clustering on MRI images.
 A gaussian mixture is a clustering model that can model elliptical clusters in the feature space, since it is not just using the absolute distance from the cluster center, like a kmeans would.
 It is extended with support for a probabilistic atlas and tissue models and was used on Brain images, provided by the UdG in a Medical Image Segmentation and Applications assignment.
-
+## Requirements
 ## Classes
 A description of the classes in the package
 ### GMM

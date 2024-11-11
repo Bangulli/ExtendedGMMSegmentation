@@ -3,6 +3,7 @@ import math
 import nibabel as nib
 import os
 from .atlas import Atlas
+from .scoring import Scorer
 from .tissue_model import TissueModel
 from PrettyPrint import figures
 from .feature import FeatureTransformer
@@ -15,7 +16,7 @@ class GMM:
     Implementation of the Gaussian Mixture Model according to the presentation provided by the MAIA Medical Image Segmentation and Applications course.
     Supports atlas and tissue models for prior information
     '''
-    def __init__(self, k, atlas=None, max_iter=100, init='atlas', verbose=False, tissue_model=None, tol=1e-6):
+    def __init__(self, k, max_iter=100, init='kmeans', prior=None, verbose=False):
         '''
         Constructor. Initializes the GMM with parameters
         :param k: int, number of clusters
@@ -28,11 +29,8 @@ class GMM:
         self.k = k
         self.max_iter = max_iter
         self.init = init
-        self.atlas = atlas
+        self.prior = prior
         self.verbose = verbose
-        self.tissue_model = tissue_model
-        self.prior_add_weights = None
-        self.tol = tol
         return
 
     def fit(self, image, mask, influence_frq=0):
@@ -88,10 +86,7 @@ class GMM:
                 print('Alphas:\n', self.alphas, '\n', 'Means:\n', self.means, '\n', 'Variances:\n', self.variances)
             self._estep()
             if i%influence_frq == 0:
-                if self.prior_add_weights is None:
-                    self.weights = self.weights * self.prior_weights
-                else:
-                    self.weights = self.weights * self.prior_weights * self.prior_add_weights
+                self.weights = self.weights * self.prior_weights
             self._mstep()
             if self._convergence():
                 break
@@ -177,7 +172,7 @@ class GMM:
         uses the prior information of the tissue model or atlas to refine the output
         :return:
         '''
-        res = np.argmax((self.prior_weights*self.weights), axis=-1)
+        res = np.argmax((self.prior_weights * self.weights), axis=-1)
         return res
 
     def _make_cov(self, mask): # makes covariance matrix for n-feature dimensions
@@ -204,11 +199,16 @@ class GMM:
             performs an M-step with that to initialize the parameters
         :return: None
         '''
+        # get data
+        self.X = self.ft.transform([image], mask)
+        # prepare prior weights, regardless of usage or not
+        if self.prior is not None:
+            # get probabilistic
+            seg = self.prior.soft_segment(image)
+            anatomical = self.prior.segment(image)
+            self.prior_weights = self.ft.retransform([seg[..., 0], seg[..., 1], seg[..., 2]])
         # init the hard one
         if self.init == 'kmeans':
-            warnings.warn('KMeans initialization requires a Scorer object to use at the output, to reassign labels to ground-truth')
-            # get data
-            self.X = self.ft.transform([image], mask)
             self.dims = self.X.shape[1]
             self.samples = self.X.shape[0]
             # init easy
@@ -226,14 +226,12 @@ class GMM:
                 cov = self._make_cov(assigned==i)
                 self.variances.append(cov)
 
-        elif self.init == 'atlas':
-            if not isinstance(self.atlas, Atlas):
-                raise ValueError('Supporting prior knowledge is not an atlas, but indicated atlas initialization')
-            # get probabilistic
-            seg = self.atlas.soft_segment()
-            # transform data
-            data = self.ft.transform([image, seg[..., 0], seg[..., 1], seg[..., 2]], mask)
-            self.X = data[:, 0].reshape(-1, 1)
+            warnings.warn('KMeans initialization without prior knowledge requires a Scorer object to use at the output, to reassign labels to ground-truth')
+
+
+
+        # init with priors
+        elif self.init == 'prior':
             self.dims = self.X.shape[1]
             self.samples = self.X.shape[0]
             # init easy
@@ -243,61 +241,15 @@ class GMM:
             self.variances = [np.zeros((self.dims, self.dims))]*self.k
             self.means = np.zeros((self.k, self.dims))
             # assign weights and mstep.
-            self.prior_weights = data[:, 1:]
-            self.weights = self.prior_weights
-            self._mstep()
-
-
-        elif self.init == 'tissue_model':
-            if not isinstance(self.tissue_model, TissueModel):
-                raise ValueError('Supporting prior knowledge is not a tissue model, but indicated tissue model initialization')
-            # get probabilistic
-            seg = self.tissue_model.soft_segment(image)
-            # transform data
-            data = self.ft.transform([image, seg[..., 0], seg[..., 1], seg[..., 2]], mask)
-            self.X = data[:, 0].reshape(-1, 1)
-            self.dims = self.X.shape[1]
-            self.samples = self.X.shape[0]
-            # init easy
-            self.p = np.zeros((self.samples, self.k))
-            self.loglikelihood = 0
-            self.alphas = list(np.zeros(self.k))
-            self.variances = [np.zeros((self.dims, self.dims))] * self.k
-            self.means = np.zeros((self.k, self.dims))
-            # assign weights and mstep.
-            self.prior_weights = data[:, 1:]
-            self.weights = self.prior_weights
-            self._mstep()
-
-        elif self.init == 'both':
-            if not isinstance(self.tissue_model, TissueModel):
-                raise ValueError('Supporting prior knowledge is not a tissue model, but indicated tissue model initialization')
-            if not isinstance(self.atlas, Atlas):
-                raise ValueError('Supporting prior knowledge is not an atlas, but indicated atlas initialization')
-            # get probabilistic
-            seg = self.tissue_model.soft_segment(image)
-            # transform data
-            data = self.ft.transform([image, seg[..., 0], seg[..., 1], seg[..., 2]], mask)
-            self.X = data[:, 0].reshape(-1, 1)
-            self.dims = self.X.shape[1]
-            self.samples = self.X.shape[0]
-            # init easy
-            self.p = np.zeros((self.samples, self.k))
-            self.loglikelihood = 0
-            self.alphas = list(np.zeros(self.k))
-            self.variances = [np.zeros((self.dims, self.dims))] * self.k
-            self.means = np.zeros((self.k, self.dims))
-            # assign weights and mstep.
-            self.prior_weights = data[:, 1:]
-            seg = self.tissue_model.soft_segment(image)
-            self.pior_add_weights = self.ft.retransform([seg[..., 0], seg[..., 1], seg[..., 2]])
-            self.weights = self.prior_weights * self.pior_add_weights
+            self.weights = self.prior_weights.copy()
             self._mstep()
 
         else:
             raise NotImplementedError('Unknown init method')
 
-    def _convergence(self):
+
+
+    def _convergence(self, tol=1e-6):
         '''
         Check for convergence according to a tolerance range. Computes the loglikelihood of the model and compares it to the
         previous iteration. If the difference is less than the tolerance return true
@@ -307,7 +259,7 @@ class GMM:
         inner_sums = np.dot(self.p, self.alphas)
         inner_sums = np.maximum(inner_sums, 1e-300)
         ll = np.sum(np.log(inner_sums))
-        if abs(self.loglikelihood - ll) < self.tol:
+        if abs(self.loglikelihood - ll) < tol:
             print('\nConvergence found')
             return True
         else:
