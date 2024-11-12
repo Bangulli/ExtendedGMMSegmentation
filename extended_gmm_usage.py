@@ -3,7 +3,6 @@ import os
 import nibabel as nib
 import models
 import numpy as np
-import scipy
 import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings("ignore")
@@ -66,13 +65,14 @@ if __name__ == '__main__':
         image, affine = load_nifty_as_np(os.path.join(img_folder, img))
         mask, _ = load_nifty_as_np(os.path.join(msk_folder, img.split('.')[0]+'_1C.nii'))
         gt, _ = load_nifty_as_np(os.path.join(gt_folder, img.split('.')[0]+'_3C.nii'))
+        TMA = models.TMACombination(at, tm)
         gmm = models.GMM(3, init='prior', prior=tm)
 
         seg = gmm.fit_transform(image, mask.astype(bool), True, 2)
 
 
-        #sc = models.Scorer(gt, np.zeros(1), seg)
-        #seg, _, dc = sc.relabel()
+        #sc = models.Scorer(gt, np.zeros(1), seg) # if kmeans is used
+        #seg, _, dc = sc.relabel()# kmeans returns randomly ordered labels, scorer finds the best label combination
 
         dices.append(dice(seg, gt))
         nib.save(nib.Nifti1Image(seg, affine), os.path.join("your-output-path", img))

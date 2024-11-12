@@ -11,7 +11,7 @@ class Scorer():
     '''
     Object to assign the random order of cluster labels to the labels of the ground truth by dice score and produce resulting score
     '''
-    def __init__(self, gt, predictions, image):
+    def __init__(self, gt, image, predictions=np.zeros(1)):
         '''
         Constructor.
         :param gt: nd array, ground truth

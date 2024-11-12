@@ -8,7 +8,6 @@ from .tissue_model import TissueModel
 from PrettyPrint import figures
 from .feature import FeatureTransformer
 from sklearn.cluster import KMeans
-from scipy.ndimage import median_filter
 import warnings
 
 class GMM:
@@ -200,7 +199,10 @@ class GMM:
         :return: None
         '''
         # get data
-        self.X = self.ft.transform([image], mask)
+        if isinstance(image, list):
+            self.X = self.ft.transform(image, mask)
+        else:
+            self.X = self.ft.transform([image], mask)
         # prepare prior weights, regardless of usage or not
         if self.prior is not None:
             # get probabilistic
