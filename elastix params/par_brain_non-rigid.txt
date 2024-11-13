@@ -1,0 +1,52 @@
+// Optimized parameter file for B-spline nonrigid registration on 3D brain MRI
+
+(FixedInternalImagePixelType "float")
+(MovingInternalImagePixelType "float")
+(UseDirectionCosines "true")
+
+// Main Components
+(Registration "MultiResolutionRegistration")
+(Interpolator "BSplineInterpolator")
+(ResampleInterpolator "FinalBSplineInterpolator")
+(Resampler "DefaultResampler")
+(FixedImagePyramid "FixedRecursiveImagePyramid")
+(MovingImagePyramid "MovingRecursiveImagePyramid")
+(Optimizer "AdaptiveStochasticGradientDescent")
+(Transform "BSplineTransform")
+(Metric "AdvancedMattesMutualInformation")
+
+// Mask options
+(ErodeFixedMask "false")   // Set to "true" if the mask should be eroded slightly
+(ErodeMovingMask "false")
+
+// Transformation
+// Adjusted control point spacing to balance deformation flexibility with stability
+(FinalGridSpacingInPhysicalUnits 8.0)  // Finer control points for improved accuracy on brain MRI
+
+(HowToCombineTransforms "Compose")
+
+// Similarity Measure
+(NumberOfHistogramBins 64)  // Higher bins for improved MI accuracy in brain MRI images
+(ErodeMask "false")
+
+// Multiresolution Settings
+(NumberOfResolutions 5)  // Additional resolution for improved convergence on large deformations
+(ImagePyramidSchedule 8 8 8  4 4 4  2 2 2  1 1 1)  // Pyramid schedule suited for 3D
+
+// Optimizer Settings
+(MaximumNumberOfIterations 1000)  // Increased iterations for each resolution level
+
+// Image Sampling
+(NumberOfSpatialSamples 4096)  // More samples for better accuracy in high-detailed images
+(NewSamplesEveryIteration "true")
+(ImageSampler "Random")
+
+// Interpolation and Resampling
+(BSplineInterpolationOrder 3)  // Higher-order interpolation for accuracy during optimization
+(FinalBSplineInterpolationOrder 3)  // Best choice for final deformation in brain MRI
+
+// Other Settings
+(DefaultPixelValue 0)
+(WriteResultImage "true")
+(ResultImagePixelType "float")
+(ResultImageFormat "nii")

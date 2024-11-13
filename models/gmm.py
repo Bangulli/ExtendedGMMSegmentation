@@ -261,7 +261,7 @@ class GMM:
         inner_sums = np.dot(self.p, self.alphas)
         inner_sums = np.maximum(inner_sums, 1e-300)
         ll = np.sum(np.log(inner_sums))
-        if abs(self.loglikelihood - ll) < tol:
+        if abs(self.loglikelihood - ll) <= tol:
             print('\nConvergence found')
             return True
         else:
