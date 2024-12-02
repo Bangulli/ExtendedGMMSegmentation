@@ -188,7 +188,8 @@ class TissueModel:
         segmentation = self.L_prob[:, image].transpose(1, 2, 3, 0)
         mask = np.sum(segmentation, axis=-1)!=0
         segmentation = np.argmax(segmentation, axis=-1)
-        return segmentation[mask]+1
+        segmentation[mask] += 1
+        return segmentation
 
     def soft_segment(self, image):
         '''
